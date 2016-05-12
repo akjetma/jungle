@@ -1,71 +1,55 @@
 (ns jungle.station
-  "Send metrics to the jungle receiver."
-  (:require [clojure.core.async :as a :refer [go go-loop]]
-            [environ.core :as environ]
+  "Simulates a process sending messages to a jungle receiver server."
+  (:require [clojure.core.async :as a]
+            [jungle.config :as config]
             [org.httpkit.client :as http]))
 
-(def receiver-path "/metric")
+(defonce counter (atom 0))
 
-(defn current-timestamp
-  "Using GMT epoch time for now. Wrapping in function in case I change later."
-  []
-  (System/currentTimeMillis))
 
-(defn metric-msg
-  "format/serialize metric data"
-  [timestamp metric status]
-  (prn-str
-   {:timestamp timestamp
-    :name metric
-    :value status}))
+(defn generator
+  "returned function generates random numbers evenly distributed about 
+  avg-val, between 2*avg-val and 0."
+  [avg-val]
+  (let [max-val (* 2 avg-val)]
+    (fn gen
+      []
+      (rand-int max-val))))
 
-(defn report
-  "send metric to jungle receiver"
-  [receiver metric status]
-  (let [timestamp (current-timestamp)
-        message (metric-msg time metric status)]
-    (println "reporting" metric "at" timestamp ":" status "to" receiver)
-    #_
-    (http/request
-     {:method :post
-      :url receiver
-      :body message})))
+(defn rate->timeout
+  [avg-rate]
+  (->> avg-rate   ;; req/s
+       (/ 1)      ;; s/req
+       (* 1000))) ;; ms/req
 
-(defn start-reporter
-  "Starts reporting service. Returns functions for stopping service and setting
-  the status of a metric. Sends most recent metric status to jungle server at a
-  maximum interval of [interval] ms. Effectively caps the maximum number of
-  messages sent to jungle receiver and decouples setting the metric's status from 
-  reporting it."
-  [receiver metric interval]
+(defn send-record
+  [metric time record]
+  (swap! counter inc)
+  (http/request
+   {:method :post
+    :url config/address
+    :query-params {:name metric
+                   :timestamp time
+                   :value record}}))
+
+(defn start-simulator
+  [metric avg-val avg-rate]
   (let [stop-ch (a/chan)
-        ;; since we're sending messages at regular intervals and only want the
-        ;; latest information, we can drop stale statuses using a sliding buffer.
-        status-ch (a/chan (a/sliding-buffer 1))]
-    (go-loop []
-      (let [[_ chan] (a/alts! [stop-ch (a/timeout interval)])]
-        (if (= chan stop-ch)
-          (println "stopping metric reporter")
-          (let [status (a/poll! status-ch)]
-            ;; if there's no message here, we have no information for this
-            ;; interval.
-            (when status 
-              (report receiver metric status))
-            (recur)))))
-    {:stop-reporter (fn stop-reporter 
-                      [] 
-                      (a/put! stop-ch :stop))
-     :set-status (fn set-status 
-                   [status] 
-                   (a/put! status-ch status))}))
-
-(defn system-reporter
-  "Convenience function for starting the primary metric for a service 
-  (its hearbeat) from environment variables."
-  []
-  (let [{receiver-root :jungle-receiver 
-         metric :jungle-metric 
-         interval :jungle-interval} environ/env
-        receiver (str receiver-root receiver-path)]
-    (when (every? some? [receiver-root metric interval])
-      (start-reporter receiver metric interval))))
+        stop-fn #(a/put! stop-ch :stop)
+        gen-timeout (generator (rate->timeout avg-rate))
+        gen-value (generator avg-val)]
+    (a/go-loop [timeout 0
+                value 0]
+      (let [[_ chan] (a/alts! [stop-ch (a/timeout timeout)])]
+        (when-not (= chan stop-ch)
+          (send-record metric
+                       (System/currentTimeMillis)
+                       value)          
+          (recur 
+           (gen-timeout)
+           (gen-value)))))
+    (println metric "simulator started")
+    (fn stop-simulator
+      []
+      (a/put! stop-ch :stop)
+      (println metric "simulator stopped"))))
