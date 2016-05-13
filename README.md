@@ -1,28 +1,64 @@
-# jungle
+#jungle
 
-System for reporting, recording, and analyzing metrics from servers.
+Submission for Quartet core platform coding challenge.
 
-## log
+-----
 
-**5/10 7PM -** Starting things off. I'm making a few assumptions until I hear back from the platform team. Chief among those assumptions is that servers reported their metrics to the receiving server using a common library.
+## API
 
-I'm going to start by creating that library and an example server that uses it. Keeping all of this in the same project for now rather than going full-on simulation mode and splitting it into different repos.
+### /metric
 
-**5/10 8PM -** `jungle.station` is filled out. Got sidetracked thinking about backpressure and logging systems. 
+**Description** - Store a new metric record
 
-Plan for tomorrow:
-- Set up `jungle.receiver`'s metric receipt/persistence mechanism. 
-- Start up a fleet of example `jungle.station`s.
-- Check load on receiver and make sure requests are being processed in parallel
+**Parameters**
 
-Stretch goals/Thursday or Friday:
-- Set up querying system.
-- Check performance characteristics of querying before and after dramatically increasing amount of stored metric data.
-- Clean up API/check edge case queries.
-- Clean up docs
+- *name (string):* name of the metric
+- *timestamp (number):* unix epoch time (ms)
+- *value (number):* value of the metric
 
-**5/12 2PM -** Okay, Didn't have time to do anything yesterday, which is good because after receiving a reply from the platform team and reviewing my code from Tuesday, it looks like I am solving a bunch of tertiary problems not related to the coding challenge.
+### /aggregate
 
-Today, I decided to start by setting up a working system with the existing code. All the goals of the coding challenge are now met, going to remove all the extra stuff now and then perform load testing. The platform team's email specified that it should handle bursts of ~100 inserts/sec for about a minute at a time on a magical computer with unlimited memory :).
+**Description** - Sum the values for a metric within a given time range
 
-**5/12 4PM -** Load test passing for sustained rate of 100 req/sec, cleaned up code.
+**Parameters**
+
+- *name (string):* name of the metric
+- *from (number):* beginning of range in unix epoch time (ms)
+- *to (number):* end of range in unix epoch time (ms)
+
+### /names
+
+**Description** - Retrieve the names of all recorded metrics
+
+**Parameters**
+
+*(none)*
+
+### /at
+
+**Description** - Last known value for a metric at a point in time
+
+**Parameters**
+
+- *name (string):* name of the metric
+- *time (number):* unix epoch time (ms)
+
+-----
+
+## Namespaces
+
+### jungle.receiver
+
+HTTP Layer and owner of system state.
+
+### jungle.metric
+
+Handlers and logic for updating and querying metrics.
+
+### jungle.station
+
+Testing utility for simulating the behavior of a server talking to a `receiver` over HTTP.
+
+### jungle.config
+
+Holds routing information common to `receiver` and `station`.
