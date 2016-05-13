@@ -1,7 +1,5 @@
 (ns jungle.metric)
 
-(defonce counter (atom 0))
-
 ;; ------------------------------------------------------------ update
 
 (defn add-record
@@ -14,10 +12,9 @@
   (let [time (read-string timestamp)
         record (read-string value)]
     (swap! state add-record name time record)
-    (swap! counter inc)
     "OK"))
 
-;; ------------------------------------------------- aggregation query
+;; ------------------------------------------------------- aggregation
 
 (defn filter-keys
   "like select-keys but with a predicate rather than a keyseq"
@@ -43,13 +40,13 @@
         tf (read-string to)]
     (aggregate @state name ti tf)))
 
-;; ------------------------------------------------ metric names query
+;; ------------------------------------------------------ metric names
 
 (defn http-names
   [{state :metrics-state}]
   (keys @state))
 
-;; ----------------------------------------------- value at time query
+;; ----------------------------------------------------- value at time
 
 (defn at
   [metrics metric time]
@@ -57,13 +54,12 @@
         descending (sort-by key > records)
         record (some 
                 (fn [[t r]] (< t time))
-                records)]
+                descending)]
     (when record 
       (val record))))
 
 (defn http-at
   [{{:keys [name time]} :params
     state :metrics-state}]
-  (println time)
   (let [t (read-string time)]
     (at @state name t)))

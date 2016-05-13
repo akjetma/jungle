@@ -4,9 +4,6 @@
             [jungle.config :as config]
             [org.httpkit.client :as http]))
 
-(defonce counter (atom 0))
-
-
 (defn generator
   "returned function generates random numbers evenly distributed about 
   avg-val, between 2*avg-val and 0."
@@ -24,7 +21,6 @@
 
 (defn send-record
   [metric time record]
-  (swap! counter inc)
   (http/request
    {:method :post
     :url config/address

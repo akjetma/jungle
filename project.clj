@@ -4,4 +4,5 @@
                  [org.clojure/core.async "0.2.374"]
                  [org.clojure/data.json "0.2.6"]
                  [polaris "0.0.15"]
-                 [ring "1.4.0"]])
+                 [ring "1.4.0"]]
+  :main jungle.receiver)
