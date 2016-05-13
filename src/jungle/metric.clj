@@ -1,4 +1,4 @@
-(ns jungle.receiver.metric)
+(ns jungle.metric)
 
 (defonce counter (atom 0))
 

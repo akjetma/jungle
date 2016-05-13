@@ -5,7 +5,7 @@
             [clojure.edn :as edn]
             [clojure.stacktrace :as st]
             [jungle.config :as config]
-            [jungle.receiver.metric :as metric]
+            [jungle.metric :as metric]
             [org.httpkit.server :as http]
             [ring.middleware.params :refer [wrap-params]]
             [ring.middleware.keyword-params :refer [wrap-keyword-params]]
