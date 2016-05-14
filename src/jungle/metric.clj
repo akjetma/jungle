@@ -48,17 +48,20 @@
 ;; ----------------------------------------------------- value at time
 
 (defn at
+  "gets the closest known value for metric before or at time"
   [metrics metric time]
   (let [records (get metrics metric)
-        descending (sort-by key > records)
-        record (some 
-                (fn [[t r]] 
-                  (and (< t time) r))
-                descending)]
-    record))
+        descending (sort-by key > records)]
+    (some
+     (fn [[t r]] 
+       (and (<= t time) r))
+     descending)))
 
 (defn http-at
   [{{:keys [name time]} :params
     state :metrics-state}]
-  (api/success 
-   (at @state name time)))
+  (if-let [v (at @state name time)]
+    (api/success v)
+    (api/error 400
+               "No Data"
+               (str "No Data for metric '" name "' before " time))))

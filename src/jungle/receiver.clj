@@ -34,24 +34,26 @@
       (api/wrap-endpoint metric/http-aggregate {:required #{:from :to :name}
                                                 :parse {:from read-string
                                                         :to read-string}
-                                                :validate {:from number?
-                                                           :to number?}})]
+                                                :types {:from java.lang.Long
+                                                        :to java.lang.Long
+                                                        :name java.lang.String}})]
      ["names" :names 
       (api/wrap-endpoint metric/http-names {})]
      ["at" :value-at 
       (api/wrap-endpoint metric/http-at {:required #{:name :time}
                                          :parse {:time read-string}
-                                         :validate {:time number?}})]]]
+                                         :types {:time java.lang.Long
+                                                 :name java.lang.String}})]]]
    ["test" :test api/handle-missing
     [["success" :success api/success-test]
      ["user-error" :user-error api/user-error-test]
      ["server-error" :server-error api/server-error-test]
-     ["api-query" :api-query 
-      (api/wrap-endpoint api/query-endpoint-test {:required #{:a :b :c}
-                                                  :parse {:a read-string
-                                                          :b read-string}
-                                                  :validate {:a number?
-                                                             :c (fn is-hey [c] (= c "hey"))}})]]]])
+     ["wrapper" :wrapper
+      (api/wrap-endpoint api/wrapper-test {:required #{:a :b :c}
+                                           :parse {:a read-string
+                                                   :b read-string}
+                                           :types {:a java.lang.Long
+                                                   :c java.lang.String}})]]]])
 
 (def router
   (-> routes
@@ -60,7 +62,7 @@
       api/wrap-missing
       api/wrap-stacktrace
       api/wrap-json
-      (api/assoc-request :metrics-state metrics-state)
+      (api/wrap-assoc-request :metrics-state metrics-state)
       wrap-keyword-params
       wrap-params))
 

@@ -3,7 +3,7 @@
             [clojure.stacktrace :as st]
             [clojure.set :as set]))
 
-;; ----------------------------------------- high level response types
+;; --------------------------------------------------------- responses
 
 (defn success
   [value]
@@ -17,59 +17,61 @@
     {:status status
      :body body}))
 
-;; ------------------------------------------------ misc/test handlers
-
-(defn success-test
-  [_] 
-  (success "Cool"))
-
-(defn user-error-test
-  [_]
-  (error 400
-         (str "What did you do")
-         "Explicit error response sent from the code"))
-
-(defn server-error-test
-  [_]
-  (/ 1 0))
-
-(defn parse-params-test
-  [{{:keys [test-a]} :params}]
-  (if (number? test-a)
-    (success "Passed")
-    (error 500
-           "Parsing error"
-           (str "test-a is a " (type test-a)))))
-
-(defn query-endpoint-test
-  [{{:keys [a b c]} :params}]
-  (success (str a " " b " " c)))
+;; ---------------------------------------------------- misc. handlers
 
 (defn handle-missing
   [{:keys [uri]}]
   (error 404
-         (str "Route not found: " uri)))
+         "Route Not Found"
+         (str "Requested: " uri)))
 
-;; ------------------------------------------------------- middlewares
+;; ----------------------------------------------------- test handlers
 
-(defn wrap-validate-params
-  "Specify validations for query params
-  -------------------------------------
-  param->validate ~= {<param name> <validation function>}
+(defn success-test
+  "Check format of good response"
+  [_] 
+  (success "Cool"))
+
+(defn user-error-test
+  "Check format of explicit error response"
+  [_]
+  (error 400
+         "Nope"
+         "No thanks"))
+
+(defn server-error-test
+  "Check that last-ditch exception handling middleware works for
+  uncaught exceptions."
+  [_]
+  (/ 1 0))
+
+(defn wrapper-test
+  "Check endpoint-wrapper"
+  [{{:keys [a b c]} :params}]
+  (success (str a " " b " " c)))
+
+;; ---------------------------------------------- endpoint middlewares
+
+(defn wrap-type-check
+  "Specify types for query params
+  -------------------------------
+  param->type ~= {<param name> <expected type>}
   -------------------------------------------------------"
-  [app param->validate]
+  [app param->type]
   (fn [{:keys [params] :as request}]
-    (if-let [invalid (some
-                      (fn [[k validate]]
-                        (let [v (get params k)]
-                          (when-not (validate v)
-                            [k v validate])))
-                      param->validate)]
+    (if-let [[k v et vt] (some
+                          (fn [[k et]]
+                            (let [v (get params k)
+                                  vt (type v)]
+                              (when-not (= et vt)
+                                [k v et vt])))
+                          param->type)]
       (error 400
-             (str "Invalid value for parameter")
-             (str "parameter: " (first invalid)
-                  " value: " (second invalid)
-                  " test: " (last invalid)))
+             "Invalid Type"
+             (str "Parameter: " k
+                  " Value: " v
+                  " Type: " vt
+                  " Expected: " et))
       (app request))))
 
 (defn wrap-parse-params
@@ -87,34 +89,38 @@
            param->parse)]
       (app parsed))))
 
-(defn wrap-missing-params
-  "Specify required params. (note: required is a set)
-  ---------------------------------------------------
+(defn wrap-required-params
+  "Specify required params
+  ------------------------
   required ~= #{<param name>}
   ---------------------------"
   [app required]
   (fn [{:keys [params] :as request}]
-    (let [provided (set (keys params))]
-      (if (set/subset? required provided)
+    (let [provided (keys params)
+          missing (set/difference (set required) (set provided))]
+      (if (empty? missing)
         (app request)
-        (let [missing (set/difference required provided)]
-          (error 400
-                 "Missing Required Parameters"
-                 (str "Required: " required ", Missing: " missing)))))))
+        (error 400
+               "Missing Required Parameters"
+               (str "Required: " required
+                    ", Provided: " provided
+                    ", Missing: " missing))))))
 
 (defn wrap-endpoint
   "Combination of middlewares for api query endpoints
   ---------------------------------------------------
   {:required #{:param1 :param2}
-   :parsers {:param1 read-string
-             :param3 string/lower-case}
-   :validations {:param1 numeric?}}
-  ---------------------------------"
-  [app {:keys [required parse validate]}]
+   :parse {:param1 read-string
+           :param3 string/lower-case}
+   :types {:param1 java.lang.Long}
+  ------------------------------"
+  [app {:keys [required parse types]}]
   (cond-> app
-    validate (wrap-validate-params validate)
+    types (wrap-type-check types)
     parse (wrap-parse-params parse)
-    required (wrap-missing-params required)))
+    required (wrap-required-params required)))
+
+;; --------------------------------------------- top-level middlewares
 
 (defn wrap-missing
   "My routing library doesn't do wildcard route matching, so this needs
@@ -147,7 +153,7 @@
         (update :body json/write-str)
         (assoc-in [:headers "Content-Type"] "application/json"))))
 
-(defn assoc-request
+(defn wrap-assoc-request
   [app k v]
   (fn [request]
     (let [updated (assoc request k v)]

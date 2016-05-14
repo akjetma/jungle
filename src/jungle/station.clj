@@ -5,8 +5,7 @@
             [org.httpkit.client :as http]))
 
 (defn generator
-  "returned function generates random numbers evenly distributed about 
-  avg-val, between 2*avg-val and 0."
+  "returned function generates random numbers evenly distributed about avg-val"
   [avg-val]
   (let [max-val (* 2 avg-val)]
     (fn gen
