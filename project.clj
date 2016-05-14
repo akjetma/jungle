@@ -3,6 +3,6 @@
                  [org.clojure/clojure "1.8.0"]
                  [org.clojure/core.async "0.2.374"]
                  [org.clojure/data.json "0.2.6"]
-                 [polaris "0.0.15"]
+                 [polaris "0.0.17"]
                  [ring "1.4.0"]]
   :main jungle.receiver)

@@ -1,4 +1,5 @@
-(ns jungle.metric)
+(ns jungle.metric
+  (:require [jungle.api :as api]))
 
 ;; ------------------------------------------------------------ update
 
@@ -9,10 +10,8 @@
 (defn http-add-record
   [{{:keys [name timestamp value]} :params
     state :metrics-state}]
-  (let [time (read-string timestamp)
-        record (read-string value)]
-    (swap! state add-record name time record)
-    "OK"))
+  (swap! state add-record name timestamp value)
+  (api/success "OK"))
 
 ;; ------------------------------------------------------- aggregation
 
@@ -36,15 +35,15 @@
 (defn http-aggregate
   [{{:keys [name from to]} :params
     state :metrics-state}]
-  (let [ti (read-string from)
-        tf (read-string to)]
-    (aggregate @state name ti tf)))
+  (api/success
+   (aggregate @state name from to)))
 
 ;; ------------------------------------------------------ metric names
 
 (defn http-names
   [{state :metrics-state}]
-  (keys @state))
+  (api/success
+   (keys @state)))
 
 ;; ----------------------------------------------------- value at time
 
@@ -53,13 +52,13 @@
   (let [records (get metrics metric)
         descending (sort-by key > records)
         record (some 
-                (fn [[t r]] (< t time))
+                (fn [[t r]] 
+                  (and (< t time) r))
                 descending)]
-    (when record 
-      (val record))))
+    record))
 
 (defn http-at
   [{{:keys [name time]} :params
     state :metrics-state}]
-  (let [t (read-string time)]
-    (at @state name t)))
+  (api/success 
+   (at @state name time)))
