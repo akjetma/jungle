@@ -6,7 +6,7 @@ Submission for Quartet core platform coding challenge.
 
 ## API
 
-### /add-metric
+### /record-metric
 
 Store a new metric record
 
