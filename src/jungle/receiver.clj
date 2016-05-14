@@ -27,20 +27,17 @@
 
 (def routes 
   [[config/path :add-record 
-    (api/wrap-endpoint metric/http-add-record 
-                       {:parse {:timestamp read-string
-                                :value read-string}})]
+    (api/wrap-endpoint metric/http-add-record {:parse {:timestamp read-string
+                                                       :value read-string}})]
    ["query" :query api/handle-missing
     [["aggregate" :aggregate 
-      (api/wrap-endpoint metric/http-aggregate 
-                         {:required #{:from :to :name}
-                          :parse {:from read-string
-                                  :to read-string}
-                          :validate {:from number?
-                                     :to number?}})]
+      (api/wrap-endpoint metric/http-aggregate {:required #{:from :to :name}
+                                                :parse {:from read-string
+                                                        :to read-string}
+                                                :validate {:from number?
+                                                           :to number?}})]
      ["names" :names 
-      (api/wrap-endpoint metric/http-names 
-                         {})]
+      (api/wrap-endpoint metric/http-names {})]
      ["at" :value-at 
       (api/wrap-endpoint metric/http-at {:required #{:name :time}
                                          :parse {:time read-string}
