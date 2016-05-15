@@ -18,38 +18,17 @@
           (when message 
             {:message message}))})
 
-;; ---------------------------------------------------- misc. handlers
+;; ----------------------------------------------------- misc. helpers
+
+(defn parse-long
+  [s]
+  (Long. s))
 
 (defn handle-missing
   [{:keys [uri]}]
   (error 404 
          "Route Not Found" 
          (str "Requested: " uri)))
-
-;; ----------------------------------------------------- test handlers
-
-(defn success-test
-  "Check format of good response"
-  [_] 
-  (success "Cool"))
-
-(defn user-error-test
-  "Check format of explicit error response"
-  [_]
-  (error 400 
-         "Nope" 
-         "No thanks"))
-
-(defn server-error-test
-  "Check that last-ditch exception handling middleware works for
-  uncaught exceptions."
-  [_]
-  (/ 1 0))
-
-(defn wrapper-test
-  "Check endpoint-wrapper"
-  [{{:keys [a b c]} :params}]
-  (success (str a " " b " " c)))
 
 ;; ---------------------------------------------- endpoint middlewares
 
@@ -168,3 +147,37 @@
   (fn [request]
     (let [updated (assoc request k v)]
       (app updated))))
+
+;; ----------------------------------------------------- test handlers
+
+(defn success-test
+  "Check format of good response"
+  [_] 
+  (success "Cool"))
+
+(defn user-error-test
+  "Check format of explicit error response"
+  [_]
+  (error 400 
+         "Nope" 
+         "No thanks"))
+
+(defn server-error-test
+  "Check that last-ditch exception handling middleware works for
+  uncaught exceptions."
+  [_]
+  (/ 1 0))
+
+(defn wrapper-test-handler
+  "Check endpoint-wrapper"
+  [{{:keys [a b c]} :params}]
+  (success (str a " " b " " c)))
+
+(def wrapper-test-endpoint
+  (wrap-endpoint 
+   wrapper-test-handler
+   {:required #{:a :b :c}
+    :parse {:a parse-long
+            :b parse-long}
+    :types {:a Number
+            :c String}}))

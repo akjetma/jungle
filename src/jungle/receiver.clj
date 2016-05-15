@@ -24,60 +24,16 @@
   ;; -------------------------------------
   (atom {}))
 
-(defn parse-long
-  [s]
-  (Long. s))
-
-;; --------------------------------------------- api endpoint handlers
-
-(def record-metric
-  (api/wrap-endpoint 
-   metric/http-record-metric
-   {:parse {:timestamp parse-long
-            :value parse-long}}))
-
-(def aggregate
-  (api/wrap-endpoint 
-   metric/http-aggregate 
-   {:required #{:from :to :name}
-    :parse {:from parse-long
-            :to parse-long}
-    :types {:from Number
-            :to Number
-            :name String}}))
-
-(def names
-  (api/wrap-endpoint 
-   metric/http-names 
-   {}))
-
-(def at
-  (api/wrap-endpoint 
-   metric/http-at 
-   {:required #{:name :timestamp}
-    :parse {:timestamp parse-long}
-    :types {:timestamp Number
-            :name String}}))
-
-(def wrapper-test
-  (api/wrap-endpoint 
-   api/wrapper-test 
-   {:required #{:a :b :c}
-    :parse {:a parse-long
-            :b parse-long}
-    :types {:a Number
-            :c String}}))
-
 ;; ------------------------------------------------------------ server
 
 (def routes 
-  [[config/path :record-metric record-metric]
+  [[config/path :record-metric metric/record-metric-endpoint]
    ["query" :query api/handle-missing
-    [["aggregate" :aggregate aggregate]
-     ["names" :names names]
-     ["at" :at at]]]
+    [["aggregate" :aggregate metric/aggregate-endpoint]
+     ["names" :names metric/names-endpoint]
+     ["at" :at metric/at-endpoint]]]
    ["test" :test api/handle-missing
-    [["wrapper" :wrapper wrapper-test]
+    [["wrapper" :wrapper api/wrapper-test-endpoint]
      ["success" :success api/success-test]
      ["user-error" :user-error api/user-error-test]
      ["server-error" :server-error api/server-error-test]]]])

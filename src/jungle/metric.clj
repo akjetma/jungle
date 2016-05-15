@@ -7,11 +7,17 @@
   [metrics name timestamp value]
   (assoc-in metrics [name timestamp] value))
 
-(defn http-record-metric
+(defn record-metric-handler
   [{{:keys [name timestamp value]} :params
     state :metrics-state}]
   (swap! state record-metric name timestamp value)
   (api/success "OK"))
+
+(def record-metric-endpoint
+  (api/wrap-endpoint 
+   record-metric-handler
+   {:parse {:timestamp api/parse-long
+            :value api/parse-long}}))
 
 ;; ------------------------------------------------------- aggregation
 
@@ -36,18 +42,33 @@
        vals
        (reduce +)))
 
-(defn http-aggregate
+(defn aggregate-handler
   [{{:keys [name from to]} :params
     state :metrics-state}]
   (api/success
    (aggregate @state name from to)))
 
+(def aggregate-endpoint
+  (api/wrap-endpoint 
+   aggregate-handler
+   {:required #{:from :to :name}
+    :parse {:from api/parse-long
+            :to api/parse-long}
+    :types {:from Number
+            :to Number
+            :name String}}))
+
 ;; ------------------------------------------------------ metric names
 
-(defn http-names
+(defn names-handler
   [{state :metrics-state}]
   (api/success
    (keys @state)))
+
+(def names-endpoint
+  (api/wrap-endpoint 
+   names-handler
+   {}))
 
 ;; ----------------------------------------------------- value at time
 
@@ -62,8 +83,16 @@
          value))
      descending)))
 
-(defn http-at
+(defn at-handler
   [{{:keys [name timestamp]} :params
     state :metrics-state}]
   (api/success 
    (at @state name timestamp)))
+
+(def at-endpoint
+  (api/wrap-endpoint 
+   at-handler
+   {:required #{:name :timestamp}
+    :parse {:timestamp api/parse-long}
+    :types {:timestamp Number
+            :name String}}))
