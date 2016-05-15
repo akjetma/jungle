@@ -36,7 +36,7 @@
   "Specify types for query params
   -------------------------------
   param->type ~= {<param name> <expected type>}
-  -------------------------------------------------------"
+  ---------------------------------------------"
   [app param->type]
   (fn [{:keys [params] :as request}]
     (if-let [[param value expected received] 
@@ -68,7 +68,7 @@
                (update-in r [:params param] parse))
              request
              param->parse)
-            (catch java.lang.NumberFormatException e
+            (catch Exception e
               nil))]
       (if parsed
         (app parsed)
