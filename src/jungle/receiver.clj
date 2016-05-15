@@ -1,8 +1,7 @@
 (ns jungle.receiver
   "Receive metrics from quartet servers and present them for inspection."
   (:gen-class)
-  (:require [clojure.data.json :as json]
-            [clojure.stacktrace :as st]
+  (:require [clojure.edn :as edn]
             [jungle.api :as api]
             [jungle.config :as config]
             [jungle.metric :as metric]
@@ -25,35 +24,63 @@
   ;; -------------------------------------
   (atom {}))
 
+(defn parse-long
+  [s]
+  (Long. s))
+
+;; --------------------------------------------- api endpoint handlers
+
+(def record-metric
+  (api/wrap-endpoint 
+   metric/http-record-metric
+   {:parse {:timestamp parse-long
+            :value parse-long}}))
+
+(def aggregate
+  (api/wrap-endpoint 
+   metric/http-aggregate 
+   {:required #{:from :to :name}
+    :parse {:from parse-long
+            :to parse-long}
+    :types {:from Number
+            :to Number
+            :name String}}))
+
+(def names
+  (api/wrap-endpoint 
+   metric/http-names 
+   {}))
+
+(def at
+  (api/wrap-endpoint 
+   metric/http-at 
+   {:required #{:name :timestamp}
+    :parse {:timestamp parse-long}
+    :types {:timestamp Number
+            :name String}}))
+
+(def wrapper-test
+  (api/wrap-endpoint 
+   api/wrapper-test 
+   {:required #{:a :b :c}
+    :parse {:a parse-long
+            :b parse-long}
+    :types {:a Number
+            :c String}}))
+
+;; ------------------------------------------------------------ server
+
 (def routes 
-  [[config/path :add-record 
-    (api/wrap-endpoint metric/http-add-record {:parse {:timestamp read-string
-                                                       :value read-string}})]
+  [[config/path :record-metric record-metric]
    ["query" :query api/handle-missing
-    [["aggregate" :aggregate 
-      (api/wrap-endpoint metric/http-aggregate {:required #{:from :to :name}
-                                                :parse {:from read-string
-                                                        :to read-string}
-                                                :types {:from java.lang.Long
-                                                        :to java.lang.Long
-                                                        :name java.lang.String}})]
-     ["names" :names 
-      (api/wrap-endpoint metric/http-names {})]
-     ["at" :value-at 
-      (api/wrap-endpoint metric/http-at {:required #{:name :time}
-                                         :parse {:time read-string}
-                                         :types {:time java.lang.Long
-                                                 :name java.lang.String}})]]]
+    [["aggregate" :aggregate aggregate]
+     ["names" :names names]
+     ["at" :at at]]]
    ["test" :test api/handle-missing
-    [["success" :success api/success-test]
+    [["wrapper" :wrapper wrapper-test]
+     ["success" :success api/success-test]
      ["user-error" :user-error api/user-error-test]
-     ["server-error" :server-error api/server-error-test]
-     ["wrapper" :wrapper
-      (api/wrap-endpoint api/wrapper-test {:required #{:a :b :c}
-                                           :parse {:a read-string
-                                                   :b read-string}
-                                           :types {:a java.lang.Long
-                                                   :c java.lang.String}})]]]])
+     ["server-error" :server-error api/server-error-test]]]])
 
 (def router
   (-> routes

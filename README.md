@@ -6,7 +6,17 @@ Submission for Quartet core platform coding challenge.
 
 ## API
 
-### /record-metric
+**Notes:**
+
+- Parameters are query-string parameters
+- HTTP verb is not important (not a RESTful API)
+- Top-level HTTP status codes are used (x00), but not particularly informative
+- Responses are JSON
+- Error responses have an `error` key, normal responses have a `value` key (the two are mutually exclusive)
+- The value of the `error` key is a string name/title for the error. You can think of this as the error 'type'.
+- Error responses optionally have a `message` key that offers more context-specific, dynamic information.
+
+### /record/metric
 
 Store a new metric record
 

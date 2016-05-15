@@ -3,14 +3,14 @@
 
 ;; ------------------------------------------------------------ update
 
-(defn add-record
-  [metrics metric time record]
-  (assoc-in metrics [metric time] record))
+(defn record-metric
+  [metrics name timestamp value]
+  (assoc-in metrics [name timestamp] value))
 
-(defn http-add-record
+(defn http-record-metric
   [{{:keys [name timestamp value]} :params
     state :metrics-state}]
-  (swap! state add-record name timestamp value)
+  (swap! state record-metric name timestamp value)
   (api/success "OK"))
 
 ;; ------------------------------------------------------- aggregation
@@ -24,11 +24,15 @@
     (comp keypred key)
     m)))
 
+(defn between?
+  [begin end v]
+  (<= begin v end))
+
 (defn aggregate
   "sum the values of a metric within a timerange (inclusive)"
-  [metrics metric from to]
-  (->> (get metrics metric)
-       (filter-keys #(<= from % to))
+  [metrics name from to]
+  (->> (get metrics name)
+       (filter-keys (partial between? from to))
        vals
        (reduce +)))
 
@@ -49,19 +53,17 @@
 
 (defn at
   "gets the closest known value for metric before or at time"
-  [metrics metric time]
-  (let [records (get metrics metric)
+  [metrics name timestamp]
+  (let [records (get metrics name)
         descending (sort-by key > records)]
     (some
-     (fn [[t r]] 
-       (and (<= t time) r))
+     (fn [[t value]] 
+       (when (<= t timestamp) 
+         value))
      descending)))
 
 (defn http-at
-  [{{:keys [name time]} :params
+  [{{:keys [name timestamp]} :params
     state :metrics-state}]
-  (if-let [v (at @state name time)]
-    (api/success v)
-    (api/error 400
-               "No Data"
-               (str "No Data for metric '" name "' before " time))))
+  (api/success 
+   (at @state name timestamp)))

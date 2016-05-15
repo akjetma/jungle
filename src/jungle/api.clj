@@ -12,17 +12,18 @@
 
 (defn error
   [status error & [message]]
-  (let [body (when message {:message message})
-        body (assoc body :error error)]
-    {:status status
-     :body body}))
+  {:status status
+   :body (merge 
+          {:error error}
+          (when message 
+            {:message message}))})
 
 ;; ---------------------------------------------------- misc. handlers
 
 (defn handle-missing
   [{:keys [uri]}]
-  (error 404
-         "Route Not Found"
+  (error 404 
+         "Route Not Found" 
          (str "Requested: " uri)))
 
 ;; ----------------------------------------------------- test handlers
@@ -35,8 +36,8 @@
 (defn user-error-test
   "Check format of explicit error response"
   [_]
-  (error 400
-         "Nope"
+  (error 400 
+         "Nope" 
          "No thanks"))
 
 (defn server-error-test
@@ -59,19 +60,19 @@
   -------------------------------------------------------"
   [app param->type]
   (fn [{:keys [params] :as request}]
-    (if-let [[k v et vt] (some
-                          (fn [[k et]]
-                            (let [v (get params k)
-                                  vt (type v)]
-                              (when-not (= et vt)
-                                [k v et vt])))
-                          param->type)]
+    (if-let [[param value expected received] 
+             (some
+              (fn [[param expected]]
+                (let [value (get params param)]
+                  (when-not (instance? expected value)
+                    [param value expected (type value)])))
+              param->type)]
       (error 400
              "Invalid Type"
-             (str "Parameter: " k
-                  " Value: " v
-                  " Type: " vt
-                  " Expected: " et))
+             (str "Parameter: " param
+                  "\nValue: " value
+                  "\nType: " received
+                  "\nExpected: " expected))
       (app request))))
 
 (defn wrap-parse-params
@@ -82,12 +83,19 @@
   [app param->parse]
   (fn [request]
     (let [parsed
-          (reduce
-           (fn [r [param parse]]
-             (update-in r [:params param] parse))
-           request
-           param->parse)]
-      (app parsed))))
+          (try
+            (reduce
+             (fn [r [param parse]]
+               (update-in r [:params param] parse))
+             request
+             param->parse)
+            (catch java.lang.NumberFormatException e
+              nil))]
+      (if parsed
+        (app parsed)
+        (error 400
+               "Parsing Error"
+               (str "Could not parse parameters: " (:params request)))))))
 
 (defn wrap-required-params
   "Specify required params
@@ -144,7 +152,9 @@
       (catch Exception e
         (let [trace (with-out-str (st/print-stack-trace e))]
           (println trace)
-          (error 500 "Uncaught exception" trace))))))
+          (error 500 
+                 "Uncaught exception" 
+                 trace))))))
 
 (defn wrap-json
   [app]
